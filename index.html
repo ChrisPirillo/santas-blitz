@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- SEO & Metadata -->
+    <title>Santa's Blitz - Festive Match-3 Puzzle Arcade Game</title>
+    <meta name="description" content="Santa's Blitz is an addictive, holiday-themed match-3 arcade game. Match ornaments, trees, and wreaths to score points and climb the leaderboard in this festive winter challenge.">
+    <meta name="keywords" content="Santa's Blitz, Christmas game, match 3 puzzle, holiday arcade, festive games, online puzzle game, Pirillo arcade, Chris Pirillo">
+    <link rel="canonical" href="https://pirillo.com/arcade/santas-blitz.html">
+    <meta name="author" content="Chris Pirillo">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://pirillo.com/arcade/santas-blitz.html">
+    <meta property="og:title" content="Santa's Blitz - Festive Match-3 Puzzle Game">
+    <meta property="og:description" content="Help Santa clear the board! A fast-paced holiday puzzle game with glowing wreaths and winter magic.">
+    <meta property="og:image" content="https://pirillo.com/arcade/images/santas-blitz.png">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@ChrisPirillo">
+    <meta name="twitter:creator" content="@ChrisPirillo">
+    <meta name="twitter:url" content="https://pirillo.com/arcade/santas-blitz.html">
+    <meta name="twitter:title" content="Santa's Blitz - Festive Match-3 Puzzle Game">
+    <meta name="twitter:description" content="Match 3 to score big in Santa's Blitz! Experience festive magic in this high-speed holiday arcade game.">
+    <meta name="twitter:image" content="https://pirillo.com/arcade/images/santas-blitz.png">
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Santa's Blitz",
+      "operatingSystem": "Web",
+      "applicationCategory": "GameApplication",
+      "genre": "Puzzle",
+      "author": {
+        "@type": "Person",
+        "name": "Chris Pirillo",
+        "url": "https://pirillo.com"
+      },
+      "description": "A festive match-3 puzzle game featuring holiday-themed assets and dynamic WebGL backgrounds.",
+      "url": "https://pirillo.com/arcade/santas-blitz.html",
+      "image": "https://pirillo.com/arcade/images/santas-blitz.png"
+    }
+    </script>
+
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-1CQ4D3VQ3L"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-1CQ4D3VQ3L');
+    </script>
+
+    <!-- Performance: Resource Hints -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@700&family=Nunito:wght@700;900&display=swap">
+    
+    <!-- Scripts: Tailwind MUST NOT be deferred to prevent FOUC -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@700&family=Nunito:wght@700;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    
+    <style>
+        :root {
+            --gem-size: 45px; 
+            --anim-speed: 0.25s;
+            --font-title: 'Mountains of Christmas', cursive;
+            --font-ui: 'Nunito', sans-serif;
+        }
+
+        /* CLS Optimization: Pre-set canvas and container dimensions */
+        body {
+            background-color: #111827; 
+            color: white;
+            font-family: var(--font-ui);
+            overflow: hidden; 
+            touch-action: none; 
+            user-select: none; 
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #bg-canvas, #snow-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #bg-canvas { z-index: 0; }
+        #snow-canvas { pointer-events: none; z-index: 1; }
+
+        #game-container {
+            position: relative;
+            margin: 0 auto;
+            background: rgba(10, 30, 20, 0.4); 
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border-radius: 20px;
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
+            border: 3px solid rgba(255, 255, 255, 0.15);
+            overflow: hidden;
+            z-index: 10; 
+            transition: opacity 0.5s;
+            /* Prevent Layout Shift */
+            min-width: 300px;
+            min-height: 300px;
+        }
+
+        .gem {
+            position: absolute;
+            width: var(--gem-size);
+            height: var(--gem-size);
+            transition: top var(--anim-speed) ease-in-out, left var(--anim-speed) ease-in-out, transform 0.2s;
+            cursor: pointer;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .gem svg {
+            width: 90%;
+            height: 90%;
+            filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.4));
+            pointer-events: none;
+        }
+
+        .gem.selected { z-index: 20; }
+        .gem.selected svg {
+            filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.8));
+            animation: pulse 1s infinite;
+        }
+
+        .gem.hint::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,215,0,0) 70%);
+            z-index: -1;
+            animation: hint-glow 1s infinite alternate;
+            border-radius: 50%;
+        }
+
+        .gem.hint svg { animation: hint-shake 2s infinite; }
+        .gem-hyper svg {
+            animation: hyper-spin 3s linear infinite;
+            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.8));
+        }
+
+        @keyframes hyper-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes hint-glow { from { opacity: 0.3; transform: scale(0.8); } to { opacity: 0.8; transform: scale(1.2); } }
+        @keyframes hint-shake { 0%, 100% { transform: rotate(0deg); } 10%, 30%, 50%, 70%, 90% { transform: rotate(-5deg); } 20%, 40%, 60%, 80% { transform: rotate(5deg); } }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
+
+        .pixel { position: absolute; width: 10px; height: 10px; pointer-events: none; z-index: 40; backface-visibility: hidden; }
+        .float-text { position: absolute; color: #ffd700; font-weight: 900; font-size: 28px; pointer-events: none; animation: floatUp 1s forwards; z-index: 100; text-shadow: 0 2px 4px rgba(0,0,0,0.8); white-space: nowrap; font-family: var(--font-ui); }
+        @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-60px) scale(1.2); opacity: 0; } }
+
+        #ui-layer {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 15px 25px;
+            pointer-events: none;
+            z-index: 50;
+            background: linear-gradient(to right, rgba(144, 12, 63, 0.9), rgba(199, 0, 57, 0.8));
+            border-radius: 50px;
+            border: 2px solid rgba(255, 215, 0, 0.4);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+
+        .stats-row { display: flex; justify-content: space-between; align-items: center; width: 100%; color: white; font-size: 1.2rem; text-shadow: 0 2px 2px rgba(0,0,0,0.3); }
+        .stat-label { font-size: 0.9rem; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px; margin-right: 5px; }
+        .stat-value { font-size: 1.5rem; font-weight: 900; font-family: var(--font-ui); }
+
+        #timer-container { width: 100%; height: 16px; background: rgba(0,0,0,0.3); border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.2); position: relative; }
+        #timer-bar {
+            width: 100%; height: 100%;
+            background: repeating-linear-gradient(45deg, #27ae60, #27ae60 10px, #2ecc71 10px, #2ecc71 20px);
+            transform-origin: left;
+            transition: transform 1s linear;
+            box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+        }
+
+        #modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 20, 10, 0.85);
+            z-index: 100;
+            display: flex; justify-content: center; align-items: center; flex-direction: column;
+            color: white; transition: opacity 0.3s; backdrop-filter: blur(8px);
+        }
+
+        .hidden { display: none !important; opacity: 0; pointer-events: none; }
+        .glass-card { background: rgba(200, 0, 0, 0.15); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6); }
+        .title-glow { text-shadow: 0 0 30px rgba(231, 76, 60, 0.8); font-family: var(--font-title); }
+
+        #audio-btn {
+            position: absolute; top: 20px; right: 20px; width: 44px; height: 44px;
+            border-radius: 50%; background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3); color: white;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; z-index: 60; transition: all 0.2s; backdrop-filter: blur(4px);
+        }
+        #audio-btn:hover { background: rgba(255, 255, 255, 0.2); transform: scale(1.1); }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col items-center justify-center bg-gray-900">
+
+    <!-- Accessibility / Semantic Structure -->
+    <header class="sr-only">
+        <h1>Santa's Blitz - A Chris Pirillo Production</h1>
+    </header>
+
+    <main class="flex flex-col items-center justify-center relative w-full h-full">
+        <!-- WebGL Background -->
+        <canvas id="bg-canvas" aria-hidden="true"></canvas>
+        
+        <!-- Snow Canvas -->
+        <canvas id="snow-canvas" aria-hidden="true"></canvas>
+
+        <!-- Audio Control -->
+        <button id="audio-btn" title="Toggle Sound" aria-label="Toggle Sound Effects">
+            <svg id="icon-sound-on" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+            <svg id="icon-sound-off" class="hidden" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+        </button>
+
+        <!-- UI Overlay -->
+        <section id="ui-layer" aria-label="Game Stats">
+            <div class="stats-row">
+                <div><span class="stat-label">Score</span><span id="score" class="stat-value">0</span></div>
+                <div class="title-glow" style="font-size: 1.8rem; letter-spacing: 2px;">Santa's Blitz</div>
+                <div><span class="stat-label">Time</span><span id="time-text" class="stat-value">60</span>s</div>
+            </div>
+            <div id="timer-container" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+                <div id="timer-bar"></div>
+            </div>
+        </section>
+
+        <!-- Main Game Area -->
+        <div id="game-container" role="grid" aria-label="Match 3 Game Board">
+            <!-- Gems are injected here by JS -->
+        </div>
+
+        <!-- Modals -->
+        <div id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="game-title">
+            <div id="modal-content" class="glass-card relative p-8 md:p-10 rounded-3xl flex flex-col items-center max-w-md w-full mx-4 overflow-hidden transform transition-all duration-300 shadow-2xl">
+                
+                <div class="absolute -top-20 -left-20 w-40 h-40 bg-red-600/30 rounded-full blur-[60px] animate-pulse"></div>
+                <div class="absolute -bottom-20 -right-20 w-40 h-40 bg-green-600/30 rounded-full blur-[60px] animate-pulse"></div>
+
+                <div class="relative z-10 flex flex-col items-center w-full text-center">
+                    <h1 id="game-title" class="title-glow text-6xl md:text-7xl font-normal tracking-wide mb-1 bg-clip-text text-transparent bg-gradient-to-b from-white to-red-100 leading-none whitespace-nowrap">
+                        Santa's <span class="text-green-400">Blitz</span>
+                    </h1>
+                    
+                    <div class="h-1 w-16 bg-gradient-to-r from-transparent via-yellow-400 to-transparent opacity-80 mb-6 mt-2"></div>
+
+                    <div id="modal-body" class="w-full flex flex-col items-center">
+                        <p class="text-blue-100/90 text-center mb-8 text-lg font-bold leading-snug">
+                            Match 3 ornaments to score points.<br>
+                            <span class="text-sm font-normal text-white/60">Unlock rare magic Wreaths!</span>
+                        </p>
+
+                        <button id="start-btn" class="group relative w-full py-4 bg-gradient-to-r from-green-600 to-green-500 rounded-2xl font-bold text-white shadow-lg overflow-hidden transition-all hover:shadow-green-500/50 hover:scale-[1.02] active:scale-[0.95] border border-white/20">
+                            <div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
+                            <span class="relative flex items-center justify-center gap-2 text-xl tracking-wider" style="font-family: var(--font-title);">
+                                PLAY NOW
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="sr-only">
+        Created by Chris Pirillo. Part of the Pirillo Arcade collection.
+    </footer>
+
+    <script>
+        /**
+         * Gem Matcher - Single File Logic
+         * JAVASCRIPT REMAINS AS-IS PER REQUEST
+         */
+
+        // --- Configuration ---
+        const COLS = 8;
+        const ROWS = 8;
+        let GEM_SIZE = 50; 
+        const BOARD_PADDING = 20; 
+        const ANIM_DURATION = 250; 
+        const GAME_DURATION = 60; 
+
+        const GEM_TYPES = [
+            { id: 0, color: '#e74c3c', shape: 'ornament', svg: `<svg viewBox="0 0 100 100" role="img" aria-label="Red Ornament"><defs><radialGradient id="grad_ornament" cx="30%" cy="30%" r="70%"><stop offset="0%" stop-color="#ff7675"/><stop offset="100%" stop-color="#c0392b"/></radialGradient></defs><circle cx="50" cy="55" r="40" fill="url(#grad_ornament)" stroke="#922b21" stroke-width="2"/><rect x="42" y="5" width="16" height="12" fill="#f1c40f" rx="2"/><path d="M50 5 L50 0" stroke="#f1c40f" stroke-width="2"/><path d="M20 55 Q50 85 80 55" stroke="gold" stroke-width="2" fill="none" opacity="0.5"/></svg>` },
+            { id: 1, color: '#2ecc71', shape: 'tree', svg: `<svg viewBox="0 0 100 100" role="img" aria-label="Christmas Tree"><defs><linearGradient id="grad_tree" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#2ecc71"/><stop offset="100%" stop-color="#27ae60"/></linearGradient></defs><polygon points="50,10 90,90 10,90" fill="url(#grad_tree)" stroke="#1e8449" stroke-width="2"/><circle cx="50" cy="10" r="5" fill="#f1c40f"/><circle cx="35" cy="60" r="4" fill="#e74c3c"/><circle cx="65" cy="60" r="4" fill="#3498db"/><circle cx="50" cy="40" r="4" fill="#9b59b6"/></svg>` },
+            { id: 2, color: '#3498db', shape: 'snowflake', svg: `<svg viewBox="0 0 100 100" role="img" aria-label="Snowflake"><defs><radialGradient id="grad_snow" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#dfe6e9"/><stop offset="100%" stop-color="#74b9ff"/></radialGradient></defs><path d="M50 10 L50 90 M10 50 L90 50 M22 22 L78 78 M78 22 L22 78" stroke="url(#grad_snow)" stroke-width="8" stroke-linecap="round"/><circle cx="50" cy="50" r="10" fill="white"/></svg>` },
+            { id: 3, color: '#f1c40f', shape: 'bell', svg: `<svg viewBox="0 0 100 100" role="img" aria-label="Gold Bell"><defs><linearGradient id="grad_bell" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f1c40f"/><stop offset="100%" stop-color="#f39c12"/></linearGradient></defs><path d="M50 10 Q80 10 90 80 L10 80 Q20 10 50 10 Z" fill="url(#grad_bell)" stroke="#b7950b" stroke-width="2"/><circle cx="50" cy="80" r="10" fill="#d35400"/></svg>` },
+            { id: 4, color: '#9b59b6', shape: 'present', svg: `<svg viewBox="0 0 100 100" role="img" aria-label="Gift Box"><defs><linearGradient id="grad_gift" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#af7ac5"/><stop offset="100%" stop-color="#8e44ad"/></linearGradient></defs><rect x="15" y="30" width="70" height="60" rx="5" fill="url(#grad_gift)" stroke="#6c3483" stroke-width="2"/><rect x="42" y="30" width="16" height="60" fill="#f1c40f"/><rect x="15" y="52" width="70" height="16" fill="#f1c40f"/><path d="M42 30 Q30 5 50 30 Q70 5 58 30" fill="none" stroke="#f1c40f" stroke-width="4"/></svg>` },
+            { id: 5, color: '#f1c40f', shape: 'star', svg: `<svg viewBox="0 0 100 100" role="img" aria-label="Christmas Star"><defs><radialGradient id="grad_star" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#f1c40f"/><stop offset="100%" stop-color="#f39c12"/></radialGradient></defs><polygon points="50,5 61,40 98,40 68,60 79,95 50,75 21,95 32,60 2,40 39,40" fill="url(#grad_star)" stroke="#d68910" stroke-width="2"/></svg>` },
+            { id: 6, color: '#ecf0f1', shape: 'snowman', svg: `<svg viewBox="0 0 100 100" role="img" aria-label="Snowman"><defs><radialGradient id="grad_white" cx="30%" cy="30%" r="70%"><stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#bdc3c7"/></radialGradient></defs><circle cx="50" cy="70" r="25" fill="url(#grad_white)" stroke="#95a5a6" stroke-width="1"/><circle cx="50" cy="35" r="18" fill="url(#grad_white)" stroke="#95a5a6" stroke-width="1"/><circle cx="45" cy="30" r="2" fill="black"/><circle cx="55" cy="30" r="2" fill="black"/><polygon points="50,35 50,40 60,38" fill="orange"/></svg>` },
+            { id: 7, color: '#27ae60', shape: 'hyper', svg: `<svg viewBox="0 0 100 100" role="img" aria-label="Magic Wreath"><defs><radialGradient id="grad_hyper" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#2ecc71"/><stop offset="100%" stop-color="#145a32"/></radialGradient></defs><circle cx="50" cy="50" r="40" fill="none" stroke="url(#grad_hyper)" stroke-width="12" stroke-dasharray="10,5"/><circle cx="50" cy="50" r="32" fill="none" stroke="#e74c3c" stroke-width="4" opacity="0.6"/><circle cx="50" cy="20" r="6" fill="#e74c3c"/><circle cx="80" cy="50" r="6" fill="#e74c3c"/><circle cx="50" cy="80" r="6" fill="#e74c3c"/><circle cx="20" cy="50" r="6" fill="#e74c3c"/><path d="M30 30 L70 70 M70 30 L30 70" stroke="#f1c40f" stroke-width="3" stroke-linecap="round"><animate attributeName="stroke" values="#f1c40f;#ffffff;#f1c40f" dur="1s" repeatCount="indefinite"/></path></svg>` }
+        ];
+
+        let grid = []; 
+        let gemElements = []; 
+        let selectedGem = null; 
+        let isProcessing = false; 
+        let score = 0;
+        let timeLeft = GAME_DURATION;
+        let timerInterval = null;
+        let hintTimeout = null;
+        let isGameActive = false;
+        
+        const AudioSys = {
+            ctx: null, masterGain: null, isMuted: false, musicInterval: null,
+            init() {
+                if (this.ctx) return;
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = 0.3; 
+                this.masterGain.connect(this.ctx.destination);
+                this.startMusic();
+            },
+            toggleMute() {
+                this.isMuted = !this.isMuted;
+                if (this.masterGain) this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.3, this.ctx.currentTime);
+                document.getElementById('icon-sound-on').classList.toggle('hidden', this.isMuted);
+                document.getElementById('icon-sound-off').classList.toggle('hidden', !this.isMuted);
+            },
+            playTone(freq, type, duration, vol = 1, slideTo = null) {
+                if (!this.ctx || this.isMuted) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, this.ctx.currentTime + duration);
+                gain.gain.setValueAtTime(0, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(vol, this.ctx.currentTime + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                osc.connect(gain); gain.connect(this.masterGain);
+                osc.start(); osc.stop(this.ctx.currentTime + duration);
+            },
+            playNoise(duration) {
+                if (!this.ctx || this.isMuted) return;
+                const bufferSize = this.ctx.sampleRate * duration;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                const gain = this.ctx.createGain();
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass'; filter.frequency.value = 1000;
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                noise.connect(filter); filter.connect(gain); gain.connect(this.masterGain);
+                noise.start();
+            },
+            sfxSwap() { this.playTone(300, 'sine', 0.15, 0.5, 600); },
+            sfxMatch(multiplier) {
+                const base = 440 + (multiplier * 50);
+                this.playTone(base, 'triangle', 0.3, 0.3);
+                setTimeout(() => this.playTone(base * 1.25, 'triangle', 0.3, 0.3), 50);
+            },
+            sfxLightning() {
+                this.playTone(800, 'sawtooth', 0.1, 0.3, 100); 
+                this.playNoise(0.6);
+                setTimeout(() => this.playTone(60, 'square', 1.0, 0.6, 10), 50);
+            },
+            sfxError() { this.playTone(150, 'sawtooth', 0.2, 0.3, 100); },
+            startMusic() {
+                if (this.musicInterval) return;
+                const scale = [261.63, 329.63, 392.00, 523.25, 392.00, 329.63];
+                this.musicInterval = setInterval(() => {
+                    if (Math.random() > 0.6) {
+                        const note = scale[Math.floor(Math.random() * scale.length)];
+                        const freq = Math.random() > 0.5 ? note : note * 2;
+                        this.playTone(freq, 'sine', 1.5, 0.1);
+                    }
+                }, 600);
+            }
+        };
+
+        const container = document.getElementById('game-container');
+        const scoreEl = document.getElementById('score');
+        const timeTextEl = document.getElementById('time-text');
+        const timerBarEl = document.getElementById('timer-bar');
+        const modal = document.getElementById('modal-overlay');
+        const startBtn = document.getElementById('start-btn');
+        const audioBtn = document.getElementById('audio-btn');
+
+        function initGame() {
+            resizeBoard();
+            window.addEventListener('resize', resizeBoard);
+            startBtn.addEventListener('click', startGame);
+            audioBtn.addEventListener('click', () => AudioSys.toggleMute());
+            initSnow(); 
+        }
+
+        function resizeBoard() {
+            const maxW = window.innerWidth * 0.95;
+            const maxH = window.innerHeight * 0.7; 
+            const size = Math.min(maxW, maxH);
+            const availableSpace = size - (BOARD_PADDING * 2);
+            const cellSize = Math.floor(availableSpace / COLS);
+            GEM_SIZE = cellSize;
+            container.style.width = `${(cellSize * COLS) + (BOARD_PADDING * 2)}px`;
+            container.style.height = `${(cellSize * ROWS) + (BOARD_PADDING * 2)}px`;
+            document.documentElement.style.setProperty('--gem-size', `${cellSize}px`);
+            if (gemElements.length > 0) renderAllGems();
+        }
+
+        function startGame() {
+            AudioSys.init(); 
+            if(AudioSys.ctx && AudioSys.ctx.state === 'suspended') AudioSys.ctx.resume();
+            modal.classList.add('hidden');
+            score = 0; timeLeft = GAME_DURATION; isGameActive = true;
+            updateUI(); createGrid();
+            if(timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 1000);
+            resetHintTimer();
+        }
+
+        function updateTimer() {
+            if(!isGameActive) return;
+            timeLeft--;
+            timeTextEl.textContent = timeLeft;
+            const pct = (timeLeft / GAME_DURATION) * 100;
+            timerBarEl.style.transform = `scaleX(${pct/100})`;
+            if(timeLeft <= 10) {
+                timerBarEl.style.background = 'repeating-linear-gradient(45deg, #c0392b, #c0392b 10px, #e74c3c 10px, #e74c3c 20px)';
+            } else {
+                 timerBarEl.style.background = 'repeating-linear-gradient(45deg, #27ae60, #27ae60 10px, #2ecc71 10px, #2ecc71 20px)';
+            }
+            if(timeLeft <= 0) gameOver("Time's Up!");
+        }
+
+        function createGrid() {
+            container.innerHTML = ''; grid = []; gemElements = [];
+            for (let r = 0; r < ROWS; r++) {
+                grid[r] = []; gemElements[r] = [];
+                for (let c = 0; c < COLS; c++) {
+                    let type;
+                    do {
+                        const rand = Math.random();
+                        if (rand < 0.005) type = 7; else type = Math.floor(Math.random() * 7);
+                    } while (
+                        (c >= 2 && grid[r][c-1] === type && grid[r][c-2] === type) ||
+                        (r >= 2 && grid[r-1][c] === type && grid[r-2][c] === type)
+                    );
+                    grid[r][c] = type;
+                    createGemElement(r, c, type);
+                }
+            }
+            if (!hasPossibleMoves()) shuffleBoard();
+        }
+
+        async function shuffleBoard() {
+            isProcessing = true;
+            const centerR = Math.floor(ROWS/2); const centerC = Math.floor(COLS/2);
+            createFloatingText(centerR, centerC, "No Moves!");
+            await wait(1000);
+            createFloatingText(centerR, centerC, "Shuffling...");
+            container.style.opacity = '0';
+            await wait(600);
+            createGrid(); container.style.opacity = '1';
+            isProcessing = false;
+        }
+
+        function createGemElement(r, c, type) {
+            const div = document.createElement('div');
+            div.className = 'gem';
+            if (type === 7) div.classList.add('gem-hyper');
+            div.innerHTML = GEM_TYPES[type].svg;
+            setPosition(div, r, c);
+            div.addEventListener('pointerdown', (e) => {
+                if(!isGameActive) return;
+                const currentR = parseInt(e.currentTarget.dataset.r);
+                const currentC = parseInt(e.currentTarget.dataset.c);
+                handleInput(currentR, currentC);
+            });
+            container.appendChild(div);
+            gemElements[r][c] = div;
+        }
+
+        function setPosition(el, r, c) {
+            el.style.left = `${c * GEM_SIZE + BOARD_PADDING}px`;
+            el.style.top = `${r * GEM_SIZE + BOARD_PADDING}px`;
+            el.dataset.r = r; el.dataset.c = c;
+        }
+
+        function renderAllGems() {
+            for(let r=0; r<ROWS; r++) {
+                for(let c=0; c<COLS; c++) { if(gemElements[r][c]) setPosition(gemElements[r][c], r, c); }
+            }
+        }
+
+        async function handleInput(r, c) {
+            if (isProcessing) return;
+            resetHintTimer();
+            if (selectedGem && selectedGem.r === r && selectedGem.c === c) {
+                gemElements[selectedGem.r][selectedGem.c].classList.remove('selected');
+                selectedGem = null; return;
+            }
+            if (!selectedGem) {
+                selectedGem = { r, c };
+                gemElements[r][c].classList.add('selected');
+                AudioSys.playTone(800, 'sine', 0.05, 0.1); return;
+            }
+            const r1 = selectedGem.r; const c1 = selectedGem.c;
+            const isAdjacent = Math.abs(r1 - r) + Math.abs(c1 - c) === 1;
+            if (isAdjacent) {
+                gemElements[r1][c1].classList.remove('selected');
+                selectedGem = null; await swapGems(r1, c1, r, c);
+            } else {
+                gemElements[r1][c1].classList.remove('selected');
+                selectedGem = { r, c }; gemElements[r][c].classList.add('selected');
+                AudioSys.playTone(800, 'sine', 0.05, 0.1);
+            }
+        }
+
+        async function swapGems(r1, c1, r2, c2) {
+            isProcessing = true; clearHints(); AudioSys.sfxSwap();
+            const type1 = grid[r1][c1]; const type2 = grid[r2][c2];
+            grid[r1][c1] = type2; grid[r2][c2] = type1;
+            const el1 = gemElements[r1][c1]; const el2 = gemElements[r2][c2];
+            gemElements[r1][c1] = el2; gemElements[r2][c2] = el1;
+            el1.style.zIndex = 100; setPosition(el1, r2, c2); setPosition(el2, r1, c1);
+            await wait(ANIM_DURATION); el1.style.zIndex = '';
+            const matches = findMatches();
+            if ((type1 === 7 || type2 === 7) && type1 !== type2) {
+                let hR, hC, tT; if (type1 === 7) { hR = r2; hC = c2; tT = type2; } else { hR = r1; hC = c1; tT = type1; }
+                await activateHypercube(hR, hC, tT); return;
+            }
+            if (matches.length > 0) {
+                if (matches.filter(m => grid[m.r][m.c] === 7).length >= 3) {
+                     AudioSys.sfxLightning(); createFloatingText(r2, c2, "MEGA WREATH!");
+                     await activateHypercube(matches[0].r, matches[0].c, Math.floor(Math.random() * 7)); return;
+                }
+                updateUI(); await processMatches(matches, 1);
+            } else {
+                AudioSys.sfxError();
+                grid[r1][c1] = type1; grid[r2][c2] = type2;
+                gemElements[r1][c1] = el1; gemElements[r2][c2] = el2;
+                setPosition(el1, r1, c1); setPosition(el2, r2, c2);
+                await wait(ANIM_DURATION); isProcessing = false;
+            }
+        }
+
+        async function activateHypercube(r, c, targetType) {
+            const targets = [];
+            for(let i=0; i<ROWS; i++) { for(let j=0; j<COLS; j++) { if (grid[i][j] === targetType) targets.push({r: i, c: j}); } }
+            targets.push({r, c}); AudioSys.sfxLightning();
+            await triggerStarLightning({r, c}, targets);
+            score += targets.length * 50; createFloatingText(r, c, "HYPER!"); updateUI();
+            targets.forEach(t => { explodeGem(t.r, t.c, targetType === 7 ? '#fff' : GEM_TYPES[targetType].color); grid[t.r][t.c] = -1; });
+            targets.forEach(t => { if (gemElements[t.r][t.c]) gemElements[t.r][t.c].style.opacity = '0'; });
+            await wait(200);
+            targets.forEach(t => { const el = gemElements[t.r][t.c]; if (el) { el.remove(); gemElements[t.r][t.c] = null; } });
+            await applyGravity(2);
+        }
+
+        function findMatches() {
+            const matches = new Set();
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS - 2; c++) {
+                    const type = grid[r][c]; if (type === -1) continue; 
+                    if (grid[r][c+1] === type && grid[r][c+2] === type) { matches.add(`${r},${c}`); matches.add(`${r},${c+1}`); matches.add(`${r},${c+2}`); }
+                }
+            }
+            for (let c = 0; c < COLS; c++) {
+                for (let r = 0; r < ROWS - 2; r++) {
+                    const type = grid[r][c]; if (type === -1) continue;
+                    if (grid[r+1][c] === type && grid[r+2][c] === type) { matches.add(`${r},${c}`); matches.add(`${r+1},${c}`); matches.add(`${r+2},${c}`); }
+                }
+            }
+            return Array.from(matches).map(str => { const [r, c] = str.split(',').map(Number); return {r, c}; });
+        }
+
+        async function processMatches(matches, comboMultiplier) {
+            const pts = matches.length * 10 * comboMultiplier * (matches.length >= 4 ? 2 : 1);
+            score += pts; timeLeft = Math.min(timeLeft + matches.length, GAME_DURATION * 1.5); updateUI();
+            const cm = matches[Math.floor(matches.length/2)];
+            createFloatingText(cm.r, cm.c, `+${pts}${comboMultiplier > 1 ? ' (x'+comboMultiplier+')' : ''}`);
+            AudioSys.sfxMatch(comboMultiplier);
+            matches.forEach(({r, c}) => { explodeGem(r, c, GEM_TYPES[grid[r][c]].color); grid[r][c] = -1; });
+            matches.forEach(({r, c}) => { if (gemElements[r][c]) gemElements[r][c].style.opacity = '0'; });
+            await wait(200); 
+            matches.forEach(({r, c}) => { if (gemElements[r][c]) { gemElements[r][c].remove(); gemElements[r][c] = null; } });
+            await applyGravity(comboMultiplier + 1);
+        }
+
+        function explodeGem(r, c, color) {
+            const pixelSize = GEM_SIZE / 4;
+            for(let i=0; i<4; i++) {
+                for(let j=0; j<4; j++) {
+                    const p = document.createElement('div');
+                    p.className = 'pixel'; p.style.backgroundColor = color;
+                    p.style.left = (c * GEM_SIZE + BOARD_PADDING + j * pixelSize) + 'px';
+                    p.style.top = (r * GEM_SIZE + BOARD_PADDING + i * pixelSize) + 'px';
+                    p.style.width = pixelSize + 'px'; p.style.height = pixelSize + 'px';
+                    p.style.boxShadow = `0 0 4px ${color}`; container.appendChild(p);
+                    const vX = (j - 1.5) * (Math.random() * 5 + 2); const vY = (i - 1.5) * (Math.random() * 5 + 2);
+                    p.animate([{ transform: `translate(0,0) scale(1)`, opacity: 1 }, { transform: `translate(${vX * 10}px, ${vY * 10}px) scale(0)`, opacity: 0 }], { duration: 600 + Math.random() * 200, easing: 'cubic-bezier(0.25, 1, 0.5, 1)', fill: 'forwards' }).onfinish = () => p.remove();
+                }
+            }
+        }
+
+        async function triggerStarLightning(src, targets) {
+            const svgNS = "http://www.w3.org/2000/svg"; const svg = document.createElementNS(svgNS, "svg");
+            Object.assign(svg.style, { position: "absolute", top: "0", left: "0", width: "100%", height: "100%", pointerEvents: "none", zIndex: "100" });
+            svg.innerHTML = `<defs><filter id="glow"><feGaussianBlur stdDeviation="4" result="cb"/><feMerge><feMergeNode in="cb"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
+            container.appendChild(svg);
+            const sX = src.c * GEM_SIZE + BOARD_PADDING + GEM_SIZE/2; const sY = src.r * GEM_SIZE + BOARD_PADDING + GEM_SIZE/2;
+            targets.forEach(t => {
+                const tX = t.c * GEM_SIZE + BOARD_PADDING + GEM_SIZE/2; const tY = t.r * GEM_SIZE + BOARD_PADDING + GEM_SIZE/2;
+                const line = document.createElementNS(svgNS, "line");
+                line.setAttribute("x1", sX); line.setAttribute("y1", sY); line.setAttribute("x2", tX); line.setAttribute("y2", tY);
+                line.setAttribute("stroke", "#ffd700"); line.setAttribute("stroke-width", "4"); line.setAttribute("filter", "url(#glow)");
+                const anim = document.createElementNS(svgNS, "animate");
+                anim.setAttribute("attributeName", "opacity"); anim.setAttribute("values", "1;0.5;1;0"); anim.setAttribute("dur", "0.4s"); anim.setAttribute("repeatCount", "1");
+                line.appendChild(anim); svg.appendChild(line);
+            });
+            container.style.transform = `scale(1.02)`; setTimeout(() => container.style.transform = `none`, 200);
+            await wait(300); svg.remove();
+        }
+
+        async function applyGravity(nextCombo) {
+            for (let c = 0; c < COLS; c++) {
+                let empty = 0;
+                for (let r = ROWS - 1; r >= 0; r--) {
+                    if (grid[r][c] === -1) empty++;
+                    else if (empty > 0) {
+                        grid[r + empty][c] = grid[r][c]; grid[r][c] = -1;
+                        const el = gemElements[r][c]; gemElements[r + empty][c] = el; gemElements[r][c] = null;
+                        setPosition(el, r + empty, c);
+                    }
+                }
+                for (let r = 0; r < empty; r++) {
+                    const type = Math.random() < 0.005 ? 7 : Math.floor(Math.random() * 7);
+                    grid[r][c] = type; createGemElement(r, c, type);
+                    const el = gemElements[r][c]; el.style.top = `${(r - empty) * GEM_SIZE + BOARD_PADDING}px`;
+                    el.offsetHeight; setPosition(el, r, c);
+                }
+            }
+            await wait(ANIM_DURATION + 50);
+            const matches = findMatches();
+            if (matches.length > 0) await processMatches(matches, nextCombo);
+            else { isProcessing = false; resetHintTimer(); if (!hasPossibleMoves()) shuffleBoard(); }
+        }
+
+        function hasPossibleMoves() {
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (c < COLS - 1) { swapGridValues(r, c, r, c + 1); const m = findMatches(); swapGridValues(r, c, r, c + 1); if (m.length > 0) return true; }
+                    if (r < ROWS - 1) { swapGridValues(r, c, r + 1, c); const m = findMatches(); swapGridValues(r, c, r + 1, c); if (m.length > 0) return true; }
+                }
+            }
+            return false;
+        }
+
+        function swapGridValues(r1, c1, r2, c2) { const t = grid[r1][c1]; grid[r1][c1] = grid[r2][c2]; grid[r2][c2] = t; }
+
+        function gameOver() {
+            isGameActive = false; clearInterval(timerInterval); if(hintTimeout) clearTimeout(hintTimeout);
+            const mb = document.getElementById('modal-body'); const mt = document.querySelector('#modal-content h1');
+            mt.innerHTML = `TIME'S&nbsp;<span class="text-green-400">UP</span>`;
+            mb.innerHTML = `<div class="text-center mb-8 animate-pulse"><div class="text-6xl font-black text-white drop-shadow-2xl" style="font-family: var(--font-title);">${score}</div><div class="text-xs text-green-300/80 mt-2">FINAL SCORE</div></div><button id="restart-btn" class="group relative w-full py-4 bg-gradient-to-r from-red-600 to-green-600 rounded-xl font-bold text-white shadow-lg overflow-hidden transition-all hover:shadow-green-500/40 hover:scale-[1.02] active:scale-[0.98] border border-white/20"><div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div><span class="relative flex items-center justify-center gap-2 text-xl tracking-widest" style="font-family: var(--font-title);">PLAY AGAIN</span></button>`;
+            document.getElementById('restart-btn').addEventListener('click', () => { mt.innerHTML = `Santa's <span class="text-green-400">Blitz</span>`; startGame(); });
+            modal.classList.remove('hidden'); AudioSys.playTone(150, 'sawtooth', 0.8, 0.5, 50);
+        }
+
+        function resetHintTimer() { if(hintTimeout) clearTimeout(hintTimeout); clearHints(); if(isGameActive && !isProcessing) hintTimeout = setTimeout(showHint, 10000); }
+        function showHint() {
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (c < COLS - 1) { swapGridValues(r, c, r, c+1); if(findMatches().length > 0) { swapGridValues(r, c, r, c+1); gemElements[r][c].classList.add('hint'); gemElements[r][c+1].classList.add('hint'); return; } swapGridValues(r, c, r, c+1); }
+                    if (r < ROWS - 1) { swapGridValues(r, c, r+1, c); if(findMatches().length > 0) { swapGridValues(r, c, r+1, c); gemElements[r][c].classList.add('hint'); gemElements[r+1][c].classList.add('hint'); return; } swapGridValues(r, c, r+1, c); }
+                }
+            }
+        }
+        function clearHints() { document.querySelectorAll('.hint').forEach(el => el.classList.remove('hint')); }
+        function createFloatingText(r, c, text) { const el = document.createElement('div'); el.className = 'float-text'; el.textContent = text; el.style.left = (c * GEM_SIZE + BOARD_PADDING + GEM_SIZE/2 - 20) + 'px'; el.style.top = (r * GEM_SIZE + BOARD_PADDING) + 'px'; container.appendChild(el); setTimeout(() => el.remove(), 1000); }
+        function updateUI() { scoreEl.textContent = score; }
+        function wait(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+        function initSnow() {
+            const canvas = document.getElementById('snow-canvas'); const ctx = canvas.getContext('2d');
+            let w, h, p = [];
+            function res() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
+            window.addEventListener('resize', res); res();
+            for(let i=0; i<100; i++) p.push({ x: Math.random() * w, y: Math.random() * h, s: Math.random() * 3 + 1, sy: Math.random() * 1 + 0.5, sx: (Math.random() - 0.5) * 0.5, o: Math.random() * 0.5 + 0.3 });
+            function upd() {
+                ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#ffffff';
+                p.forEach(i => {
+                    i.y += i.sy; i.x += i.sx + Math.sin(i.y * 0.01) * 0.2;
+                    if(i.y > h) { i.y = -10; i.x = Math.random() * w; }
+                    ctx.globalAlpha = i.o; ctx.beginPath(); ctx.arc(i.x, i.y, i.s, 0, Math.PI * 2); ctx.fill();
+                });
+                requestAnimationFrame(upd);
+            }
+            upd();
+        }
+
+        initGame();
+
+        (function initShaderBg() {
+            const bg = document.getElementById('bg-canvas'); const gl = bg.getContext('webgl'); if (!gl) return;
+            const vs = `attribute vec4 aVertexPosition; void main() { gl_Position = aVertexPosition; }`;
+            const fs = `precision mediump float; uniform float uTime; uniform vec2 uResolution; void main() { vec2 uv = gl_FragCoord.xy / uResolution.xy; float aspect = uResolution.x / uResolution.y; vec2 p = (uv - 0.5) * vec2(aspect, 1.0) * 2.0; float t = uTime * 0.2; float v = sin(p.x * 2.0 + t) + sin(p.y * 2.0 + t * 0.5) + sin((p.x * sin(t * 0.2) + p.y * cos(t * 0.3)) * 2.0); float r = sin(v + t) * 0.4 + 0.1; float g = cos(v + t * 0.7) * 0.4 + 0.2; float b = sin(v + t * 0.3) * 0.2 + 0.1; float vignette = 1.0 - smoothstep(0.4, 1.5, length(p * 0.6)); vec3 color = mix(vec3(0.01, 0.05, 0.15), vec3(r, g, b) * vignette, 0.6); gl_FragColor = vec4(color, 1.0); }`;
+            function ldS(g, t, s) { const sh = g.createShader(t); g.shaderSource(sh, s); g.compileShader(sh); return sh; }
+            const vS = ldS(gl, gl.VERTEX_SHADER, vs); const fS = ldS(gl, gl.FRAGMENT_SHADER, fs);
+            const pr = gl.createProgram(); gl.attachShader(pr, vS); gl.attachShader(pr, fS); gl.linkProgram(pr);
+            const pb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, pb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,1,1,1,-1,-1,1,-1]), gl.STATIC_DRAW);
+            const pi = { program: pr, attribs: { vp: gl.getAttribLocation(pr, 'aVertexPosition') }, uniforms: { ut: gl.getUniformLocation(pr, 'uTime'), ur: gl.getUniformLocation(pr, 'uResolution') } };
+            function resC() { bg.width = window.innerWidth; bg.height = window.innerHeight; gl.viewport(0, 0, bg.width, bg.height); }
+            window.addEventListener('resize', resC); resC();
+            function rn(n) { gl.clear(gl.COLOR_BUFFER_BIT); gl.useProgram(pi.program); gl.bindBuffer(gl.ARRAY_BUFFER, pb); gl.vertexAttribPointer(pi.attribs.vp, 2, gl.FLOAT, false, 0, 0); gl.enableVertexAttribArray(pi.attribs.vp); gl.uniform1f(pi.uniforms.ut, n * 0.001); gl.uniform2f(pi.uniforms.ur, bg.width, bg.height); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); requestAnimationFrame(rn); }
+            requestAnimationFrame(rn);
+        })();
+    </script>
+</body>
+</html>
